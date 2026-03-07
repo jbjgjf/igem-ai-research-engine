@@ -1,0 +1,14 @@
+You are a synthetic biology expert specializing in aging research.
+Given the abstract of a scientific paper, extract the following:
+1. Key biological finding (max 2 sentences)
+2. One unresolved biological question or knowledge gap mentioned or implied.
+3. One potential direction for a synthetic biology intervention or tool based on this finding.
+
+Format the output as a JSON object with these keys:
+- paper_title
+- key_finding
+- open_question
+- synbio_opportunity
+
+Paper Title: {title}
+Abstract: {abstract}

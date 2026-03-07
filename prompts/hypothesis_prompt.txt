@@ -1,0 +1,13 @@
+You are a creative systems biologist.
+Given an unresolved biological question in aging research, generate:
+1. An observation related to the question.
+2. A mechanistic hypothesis explaining the biological process.
+3. A testable prediction that would validate the hypothesis.
+
+Format the output as a JSON object with these keys:
+- observation
+- hypothesis
+- mechanism
+- prediction
+
+Biological Question: {open_question}
