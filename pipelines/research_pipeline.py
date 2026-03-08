@@ -4,6 +4,7 @@ from agents.literature_agent import LiteratureAgent
 from agents.hypothesis_agent import HypothesisAgent
 from agents.circuit_agent import CircuitAgent
 from agents.judge_agent import JudgeAgent
+from agents.biology_critic_agent import BiologyCriticAgent
 from config import settings
 
 class ResearchPipeline:
@@ -14,6 +15,7 @@ class ResearchPipeline:
         self.hyp_agent = HypothesisAgent()
         self.circ_agent = CircuitAgent()
         self.judge_agent = JudgeAgent()
+        self.critic_agent = BiologyCriticAgent()
 
     def run(self):
         mode = self.args.mode if self.args else "full"
@@ -27,9 +29,14 @@ class ResearchPipeline:
         print(f"\n--- Starting {mode.upper()} Mode (Limit: {limit}) ---")
 
         try:
-            # Special case for test-circuit if we want to bypass retrieval
-            if mode == "test-circuit":
-                return self._run_test_circuit(skip_notion)
+            # Special cases for test modes
+            if mode == "test-retrieval":
+                print(f"Fetching papers for query: {settings.SEARCH_QUERY}")
+                fetch_recent_papers(settings.SEARCH_QUERY, limit)
+                return True
+
+            if mode == "test-critic":
+                return self._run_test_critic(skip_notion)
 
             print(f"Fetching papers for query: {settings.SEARCH_QUERY}")
             papers = fetch_recent_papers(settings.SEARCH_QUERY, limit)
@@ -112,7 +119,20 @@ class ResearchPipeline:
                     print(f"    - Circuit Design validated: {str(circuit_data.get('circuit_design') or '')[:50]}...")
                     return True
 
-                # 4. Judging
+                # 4. Biology Critic
+                print(f"  > Stage: Biology Critic")
+                critic_data = self.critic_agent.evaluate(
+                    hyp, mech, 
+                    circuit_data.get("circuit_design", ""),
+                    circuit_data.get("expected_signal", "")
+                )
+                print(f"    - Verdict: {critic_data.get('critic_verdict').upper()} (Bio: {critic_data.get('biological_plausibility_score')}/10, Exp: {critic_data.get('experimental_feasibility_score')}/10)")
+                
+                if critic_data.get("critic_verdict") == "reject":
+                    print(f"    - WARNING: Biology Critic rejected this idea. Skipping Notion save if in full mode.")
+                    # In test-idea mode we still proceed to see the payload
+                
+                # 5. Judging
                 print(f"  > Stage: Judging")
                 evaluation = self.judge_agent.evaluate(hyp, str(circuit_data))
                 print(f"    - Evaluation: Score {evaluation.get('impact_score')}/10, Feasibility {evaluation.get('feasibility_score')}/10")
@@ -133,8 +153,14 @@ class ResearchPipeline:
                     "hypothesis": hyp,
                     "prediction": hypothesis_data.get("prediction"),
                     "application": lit_analysis.get("possible_igem_mapping"),
-                    "judge_comments": evaluation.get("justification"),
+                    "judge_comments": f"{evaluation.get('justification')}\n\n[Biology Critic]: {critic_data.get('critic_comments')}",
                     "measurement_feasibility": evaluation.get("feasibility_score"),
+                    "killer_comments": critic_data.get("main_scientific_risk"),
+                    "kill_reason": critic_data.get("main_scientific_risk") if critic_data.get("critic_verdict") == "reject" else "",
+                    "critic_verdict": critic_data.get("critic_verdict"),
+                    "biological_plausibility_score": critic_data.get("biological_plausibility_score"),
+                    "experimental_feasibility_score": critic_data.get("experimental_feasibility_score"),
+                    "minimum_salvage_plan": critic_data.get("minimum_salvage_plan")
                 }
 
                 if mode == "test-idea":
@@ -153,16 +179,37 @@ class ResearchPipeline:
                     return True
 
                 if not skip_notion:
-                    try:
-                        self.notion.create_idea_entry(idea_data)
-                        print("    - Saved idea to Notion.")
-                    except Exception as e:
-                        print(f"    - Error saving idea to Notion: {e}")
+                    if critic_data.get("critic_verdict") == "reject" and mode == "full":
+                        print("    - Skipping Notion save for REJECTED idea.")
+                    else:
+                        try:
+                            self.notion.create_idea_entry(idea_data)
+                            print("    - Saved idea to Notion.")
+                        except Exception as e:
+                            print(f"    - Error saving idea to Notion: {e}")
 
             return True
 
         except Exception as e:
             print(f"    - Error processing paper: {e}")
+            return False
+
+    def _run_test_critic(self, skip_notion):
+        """Test Biology Critic with a mock output."""
+        print("  > Running Biology Critic Test with sample input...")
+        mock_hyp = "Targeting senescent cells via p16-promoter driven apoptosis"
+        mock_mech = "p16 promoter activates Caspase-3 expression only in senescent cells"
+        mock_design = "[p16_promoter] >> [Caspase-3]"
+        mock_readout = "Cell death (Annexin V / PI staining)"
+        
+        critic_data = self.critic_agent.evaluate(mock_hyp, mock_mech, mock_design, mock_readout)
+        if critic_data and isinstance(critic_data, dict):
+            print(f"    - Success: Critic evaluated correctly.")
+            import json
+            print(json.dumps(critic_data, indent=2))
+            return True
+        else:
+            print("    - FAILED: Critic evaluation failed.")
             return False
 
     def _run_test_circuit(self, skip_notion):

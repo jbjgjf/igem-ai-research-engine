@@ -166,6 +166,54 @@ def fetch_semantic_scholar_papers(query: str, max_results: int = 5, source_filte
         
     return papers
 
+def apply_quality_filters(papers: List[Dict]) -> List[Dict]:
+    """
+    Apply hard filters (abstract) and compute heuristic relevance scores.
+    Conservative filtering: keep papers unless abstract is missing.
+    """
+    filtered_papers = []
+    
+    aging_keywords = [
+        "aging", "senescence", "cellular senescence", "age-related", 
+        "longevity", "ovarian aging", "inflammaging", "epigenetic drift", 
+        "mitochondrial dysfunction", "proteostasis", "DNA damage"
+    ]
+    
+    synbio_keywords = [
+        "synthetic biology", "genetic circuit", "gene circuit", 
+        "engineered cells", "biosensor", "reporter", "regulation circuit", 
+        "cellular computation", "signal processing", "engineering biology", 
+        "circuit design"
+    ]
+
+    for paper in papers:
+        title = paper.get("title", "").lower()
+        abstract = paper.get("abstract", "").lower()
+        
+        # 1. Hard filter: Abstract required
+        # Some sources return placeholders like "No abstract available."
+        is_missing_abstract = not abstract or len(abstract) < 50 or "no abstract available" in abstract
+        
+        if is_missing_abstract:
+            print(f"  [Filter] Skipped: {paper['title'][:50]}... (Reason: Missing or empty abstract)")
+            continue
+
+        # 2. Compute heuristic scores
+        aging_score = sum(1 for kw in aging_keywords if kw in title or kw in abstract)
+        synbio_score = sum(1 for kw in synbio_keywords if kw in title or kw in abstract)
+        
+        # Store scores for logging/ranking
+        paper["aging_relevance_score"] = aging_score
+        paper["synbio_relevance_score"] = synbio_score
+        
+        # Log results
+        status = "Kept"
+        print(f"  [Filter] {status}: {paper['title'][:50]}... (Aging: {aging_score}, SynBio: {synbio_score})")
+        
+        filtered_papers.append(paper)
+        
+    return filtered_papers
+
 def deduplicate_papers(papers: List[Dict]) -> List[Dict]:
     """Deduplicate papers by DOI or normalized title."""
     unique_papers = {}
@@ -189,7 +237,6 @@ def deduplicate_papers(papers: List[Dict]) -> List[Dict]:
 
 def rank_papers(papers: List[Dict]) -> List[Dict]:
     """Heuristic ranking using source priority, keywords, and recency."""
-    # Priority: PubMed > bioRxiv > S2 > arXiv
     source_priority = {
         "PubMed": 10,
         "bioRxiv": 8,
@@ -197,21 +244,16 @@ def rank_papers(papers: List[Dict]) -> List[Dict]:
         "arXiv": 3
     }
     
-    keywords = ["synthetic biology", "genetic circuit", "aging", "senescence", "igEM"]
-    
     for paper in papers:
         score = source_priority.get(paper["source"], 0)
         
-        # Keyword match in title/abstract
-        text = (paper["title"] + " " + paper["abstract"]).lower()
-        for kw in keywords:
-            if kw.lower() in text:
-                score += 2
+        # Use pre-computed heuristic scores from apply_quality_filters
+        score += paper.get("aging_relevance_score", 0) * 2
+        score += paper.get("synbio_relevance_score", 0) * 2
         
         # Recency boost
         if paper["published_date"]:
             try:
-                # Extract year
                 match = re.search(r'\d{4}', str(paper["published_date"]))
                 if match:
                     year = int(match.group())
@@ -256,7 +298,11 @@ def fetch_recent_papers(query: str, max_results: int = 5) -> List[Dict]:
     deduplicated = deduplicate_papers(all_raw_papers)
     print(f"After deduplication: {len(deduplicated)} papers")
     
-    ranked = rank_papers(deduplicated)
+    print("\nApplying quality filters...")
+    filtered = apply_quality_filters(deduplicated)
+    print(f"After filtering: {len(filtered)} papers")
+    
+    ranked = rank_papers(filtered)
     
     final_selection = ranked[:max_results]
     

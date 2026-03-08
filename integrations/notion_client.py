@@ -186,6 +186,8 @@ class NotionIntegration:
             "Application": self._rt(data.get("application")),
             "Judge comments": self._rt(data.get("judge_comments")),
             "Measurement feasibility": self._number(data.get("measurement_feasibility")),
+            "Killer comments": self._rt(data.get("killer_comments")),
+            "Kill reason": self._rt(data.get("kill_reason")),
         }
         properties = {k: v for k, v in properties.items() if v is not None}
         

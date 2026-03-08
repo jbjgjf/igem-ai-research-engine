@@ -6,7 +6,7 @@ from config import settings
 def main():
     parser = argparse.ArgumentParser(description="iGEM AI Research Engine")
     parser.add_argument("--mode", type=str, default="full", 
-                        choices=["full", "smoke", "test-circuit", "test-idea"],
+                        choices=["full", "smoke", "test-circuit", "test-idea", "test-retrieval", "test-critic"],
                         help="Execution mode (default: full)")
     parser.add_argument("--limit", type=int, default=None,
                         help="Limit the number of papers to process")
