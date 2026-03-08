@@ -54,10 +54,10 @@ class ResearchPipeline:
                     
                     # Save to Notion
                     try:
-                        self.notion.create_idea_entry(circuit_data, hyp)
-                        print("  - Saved circuit idea to Notion.")
+                        self.notion.create_experiment_entry(circuit_data, hyp)
+                        print("  - Saved experiment entry to Notion.")
                     except Exception as e:
-                        print(f"  - Error saving idea to Notion: {e}")
+                        print(f"  - Error saving experiment to Notion: {e}")
 
                     # 4. Judging (Optional, can be stored in Idea DB or as a comment)
                     # For now, let's just print the evaluation

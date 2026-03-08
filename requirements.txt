@@ -1,5 +1,5 @@
 notion-client
-openai
+mlx-lm
 arxiv
 requests
 python-dotenv
