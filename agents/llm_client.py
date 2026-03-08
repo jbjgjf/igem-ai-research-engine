@@ -15,11 +15,22 @@ except ImportError:
     generate = None
 
 class MLXClient:
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(MLXClient, cls).__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+
     def __init__(self):
+        if self._initialized:
+            return
         self.model_id = settings.MLX_MODEL_ID
         self.model = None
         self.tokenizer = None
         self._ensure_model_loaded()
+        self._initialized = True
 
     def _ensure_model_loaded(self):
         if self.model is None and load is not None:
@@ -45,12 +56,12 @@ class MLXClient:
 
         for attempt in range(retries):
             try:
+                # Removed 'temp' as it's not supported by generate_step() in the current mlx-lm version
                 response_text = generate(
                     self.model,
                     self.tokenizer,
                     prompt=prompt,
-                    max_tokens=settings.MLX_MAX_TOKENS,
-                    temp=settings.MLX_TEMPERATURE
+                    max_tokens=settings.MLX_MAX_TOKENS
                 )
                 
                 # Attempt to extract JSON from the response

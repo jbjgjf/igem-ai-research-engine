@@ -6,7 +6,8 @@ from typing import List, Dict
 # delay_seconds=3.0 and num_retries=5 are more robust than defaults.
 client = arxiv.Client(
     delay_seconds=3.0,
-    num_retries=5
+    num_retries=5,
+    page_size=5
 )
 
 def fetch_recent_papers(query: str, max_results: int = 5) -> List[Dict]:

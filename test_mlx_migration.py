@@ -24,10 +24,10 @@ class TestMLXInference(unittest.TestCase):
     @patch('agents.llm_client.generate')
     def test_literature_agent_validation(self, mock_generate, mock_load):
         mock_load.return_value = (MagicMock(), MagicMock())
-        # Missing "novelty_score"
+        # Missing "limitation"
         mock_generate.side_effect = [
-            '{"biological_question": "test", "relevance_to_aging": "high"}',
-            '{"biological_question": "test", "novelty_score": 0.9, "relevance_to_aging": "high"}'
+            '{"paper_title": "test", "key_finding": "find", "open_question": "gap", "possible_igem_mapping": "map", "biological_system": "sys", "aging_mechanism": "mech", "method_used": "met"}',
+            '{"paper_title": "test", "key_finding": "find", "open_question": "gap", "possible_igem_mapping": "map", "biological_system": "sys", "aging_mechanism": "mech", "method_used": "met", "limitation": "none"}'
         ]
         
         agent = LiteratureAgent()
@@ -35,7 +35,8 @@ class TestMLXInference(unittest.TestCase):
         agent.prompt_template = "Test {title} {abstract}"
         
         result = agent.analyze("title", "abstract")
-        self.assertIn("novelty_score", result)
+        self.assertIn("limitation", result)
+        self.assertIn("synbio_opportunity", result) # Check compatibility mapping
         self.assertEqual(mock_generate.call_count, 2)
 
 if __name__ == '__main__':

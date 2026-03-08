@@ -7,7 +7,12 @@ class CircuitAgent(BaseAgent):
 
     def design(self, hypothesis: str, mechanism: str) -> Dict[str, Any]:
         user_prompt = self.prompt_template.format(hypothesis=hypothesis, mechanism=mechanism)
-        required_keys = ["host_organism", "sensor", "genetic_circuit", "reporter", "measurement_method"]
+        required_keys = [
+            "host_organism", "genetic_parts", "measurement_method", 
+            "circuit_design", "expected_signal", "input_signal", 
+            "output_signal", "reporter", "sensor", "mvp_version",
+            "failure_points", "biosafety_concerns"
+        ]
         
         for _ in range(2):
             result = self._call_llm("You are a synthetic biology circuit designer. Return JSON.", user_prompt)

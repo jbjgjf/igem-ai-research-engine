@@ -26,12 +26,22 @@ class LiteratureAgent(BaseAgent):
 
     def analyze(self, title: str, abstract: str) -> Dict[str, Any]:
         user_prompt = self.prompt_template.format(title=title, abstract=abstract)
-        required_keys = ["biological_question", "novelty_score", "relevance_to_aging"]
+        required_keys = [
+            "paper_title", "key_finding", "open_question", 
+            "possible_igem_mapping", "biological_system", 
+            "aging_mechanism", "method_used", "limitation",
+            "aging_relevance", "alternative_interpretation",
+            "confidence", "measurement_readout", "observation",
+            "raw_extraction", "why_unresolved"
+        ]
         
         # Simplified retry loop for validation at agent level
         for _ in range(2):
             result = self._call_llm("You are a literature analysis assistant. Return JSON.", user_prompt)
             if self._validate_json(result, required_keys):
+                # Ensure backward compatibility for pipeline if it uses synbio_opportunity
+                if "synbio_opportunity" not in result and "possible_igem_mapping" in result:
+                    result["synbio_opportunity"] = result["possible_igem_mapping"]
                 return result
         
         raise RuntimeError("LiteratureAgent failed to generate valid JSON with required keys.")

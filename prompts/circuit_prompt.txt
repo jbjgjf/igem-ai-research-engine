@@ -1,18 +1,21 @@
 You are an iGEM team advisor and biological engineer.
-Convert the following mechanistic hypothesis into a synthetic biology circuit design:
+Convert the following mechanistic hypothesis into a synthetic biology circuit design.
+
 Hypothesis: {hypothesis}
 Mechanism: {mechanism}
 
-Provide the following design details:
-- Host Organism: (e.g., S. cerevisiae, E. coli, Mammalian Cell)
-- Sensor: (What triggers the circuit?)
-- Genetic Circuit: (Logic, feedback loops, components)
-- Reporter: (Output measurement, e.g., GFP, RNA-seq)
-- Measurement Method: (How to quantify the result)
-
 Format the output as a JSON object with these keys:
-- host_organism
-- sensor
-- genetic_circuit
-- reporter
-- measurement_method
+- host_organism: (e.g., S. cerevisiae, E. coli, Mammalian Cell)
+- genetic_parts: (Specific biological parts needed like promoters, RBS, CDS)
+- measurement_method: (How to quantify the result)
+- circuit_design: (Logic, feedback loops, components)
+- expected_signal: (Expected dynamic range or behavior)
+- input_signal: (What triggers the circuit)
+- output_signal: (What the circuit produces)
+- reporter: (Output measurement, e.g., GFP, RNA-seq)
+- sensor: (The specific biosensor component)
+- mvp_version: (The simplest version of this circuit to build first)
+- failure_points: (What is likely to go wrong)
+- biosafety_concerns: (Any safety or oversight issues)
+
+IMPORTANT: Return ONLY valid JSON.

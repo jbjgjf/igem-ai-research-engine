@@ -1,14 +1,24 @@
 You are a synthetic biology expert specializing in aging research.
-Given the abstract of a scientific paper, extract the following:
-1. Key biological finding (max 2 sentences)
-2. One unresolved biological question or knowledge gap mentioned or implied.
-3. One potential direction for a synthetic biology intervention or tool based on this finding.
+Given the abstract of a scientific paper, extract details into a JSON object.
 
-Format the output as a JSON object with these keys:
-- paper_title
-- key_finding
-- open_question
-- synbio_opportunity
+Required JSON keys:
+- paper_title: The full title of the paper.
+- key_finding: The most important biological discovery.
+- open_question: An unresolved biological question or knowledge gap.
+- possible_igem_mapping: How this could map to an iGEM project or synthetic biology tool.
+- biological_system: The organism or cell type studied (single string).
+- aging_mechanism: Key aging processes involved (list of strings).
+- method_used: Key experimental or computational methods (list of strings).
+- limitation: A key constraint or boundary of the current study.
+- aging_relevance: How directly this relates to human longevity or aging.
+- alternative_interpretation: Another way to explain the same results.
+- confidence: A numeric value from 0.0 to 1.0 representing extraction confidence.
+- measurement_readout: What specifically was measured (e.g., mRNA levels, lifespan).
+- observation: The primary raw observation from the study.
+- raw_extraction: A concise summary of the raw abstract.
+- why_unresolved: The reason why the open question remains a gap.
+
+IMPORTANT: Return ONLY valid JSON. No extra text.
 
 Paper Title: {title}
 Abstract: {abstract}
