@@ -9,6 +9,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 MLX_MODEL_ID = os.getenv("MLX_MODEL_ID", "mlx-community/Qwen2.5-7B-Instruct-4bit")
 MLX_MAX_TOKENS = int(os.getenv("MLX_MAX_TOKENS", "2048"))
 MLX_TEMPERATURE = float(os.getenv("MLX_TEMPERATURE", "0.7"))
+SEMANTIC_SCHOLAR_API_KEY = os.getenv("SEMANTIC_SCHOLAR_API_KEY") # Optional
 
 NOTION_TOKEN = os.getenv("NOTION_TOKEN")
 NOTION_LITERATURE_DB = os.getenv("NOTION_LITERATURE_DB")
@@ -21,6 +22,19 @@ NOTION_AGING_MECHANISM_DB = os.getenv("NOTION_AGING_MECHANISM_DB")
 # Project settings
 PAPERS_TO_FETCH = 5
 SEARCH_QUERY = '(aging OR "cellular senescence") AND ("synthetic biology" OR "genetic circuit")'
+
+EXPANDED_QUERIES = [
+    'aging AND "synthetic biology"',
+    'aging AND "genetic circuit"',
+    '"cellular senescence" AND "synthetic biology"',
+    '"cellular senescence" AND "genetic circuit"',
+    'aging AND "engineered cells"',
+    'aging AND "biological circuit"',
+    'senescence AND "engineered gene circuit"',
+    'aging AND "cellular computation"',
+    'aging AND "signal processing in cells"',
+    'aging AND "gene regulation circuit"'
+]
 
 def validate_required_env():
     missing = []
