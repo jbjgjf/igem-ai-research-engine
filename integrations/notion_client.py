@@ -185,7 +185,7 @@ class NotionIntegration:
             "Testable prediction": self._rt(data.get("prediction")),
             "Application": self._rt(data.get("application")),
             "Judge comments": self._rt(data.get("judge_comments")),
-            "Measurement feasibility": self._select(data.get("measurement_feasibility")),
+            "Measurement feasibility": self._number(data.get("measurement_feasibility")),
         }
         properties = {k: v for k, v in properties.items() if v is not None}
         

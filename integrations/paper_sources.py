@@ -241,8 +241,14 @@ def fetch_recent_papers(query: str, max_results: int = 5) -> List[Dict]:
     for q in queries:
         print(f"  Searching: {q}")
         all_raw_papers.extend(fetch_pubmed_papers(q, per_source_cap))
-        all_raw_papers.extend(fetch_semantic_scholar_papers(q, per_source_cap, source_filter="bioRxiv"))
-        all_raw_papers.extend(fetch_semantic_scholar_papers(q, per_source_cap))
+        
+        if settings.ENABLE_SEMANTIC_SCHOLAR:
+            all_raw_papers.extend(fetch_semantic_scholar_papers(q, per_source_cap, source_filter="bioRxiv"))
+            all_raw_papers.extend(fetch_semantic_scholar_papers(q, per_source_cap))
+        else:
+            if q == queries[0]: # Only log once
+                print("  Semantic Scholar is disabled (ENABLE_SEMANTIC_SCHOLAR=false). Skipping.")
+        
         all_raw_papers.extend(fetch_arxiv_papers(q, per_source_cap))
         
     print(f"Total raw papers retrieved: {len(all_raw_papers)}")

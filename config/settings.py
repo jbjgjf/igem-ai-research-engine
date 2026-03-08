@@ -9,7 +9,8 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 MLX_MODEL_ID = os.getenv("MLX_MODEL_ID", "mlx-community/Qwen2.5-7B-Instruct-4bit")
 MLX_MAX_TOKENS = int(os.getenv("MLX_MAX_TOKENS", "2048"))
 MLX_TEMPERATURE = float(os.getenv("MLX_TEMPERATURE", "0.7"))
-SEMANTIC_SCHOLAR_API_KEY = os.getenv("SEMANTIC_SCHOLAR_API_KEY") # Optional
+SEMANTIC_SCHOLAR_API_KEY = os.getenv("SEMANTIC_SCHOLAR_API_KEY") 
+ENABLE_SEMANTIC_SCHOLAR = os.getenv("ENABLE_SEMANTIC_SCHOLAR", "false").lower() == "true"
 
 NOTION_TOKEN = os.getenv("NOTION_TOKEN")
 NOTION_LITERATURE_DB = os.getenv("NOTION_LITERATURE_DB")
