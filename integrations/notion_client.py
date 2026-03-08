@@ -83,25 +83,9 @@ class NotionIntegration:
 
     def _is_duplicate(self, database_id: str, title_property: str, title_value: str) -> bool:
         """Checks if a record with the same title already exists in the database."""
-        try:
-            # Manual fallback for missing databases.query in some notion-client versions
-            query = self.notion.request(
-                path=f"databases/{database_id}/query",
-                method="POST",
-                body={
-                    "filter": {
-                        "property": title_property,
-                        "title": {
-                            "equals": title_value
-                        }
-                    }
-                }
-            )
-            return len(query.get("results", [])) > 0
-        except Exception as e:
-            # If lookup fails, better to allow potential duplicate than block the whole pipeline
-            print(f"Warning: Duplicate check lookup failed (allowing write): {e}")
-            return False
+        # Temporarily disabled due to 'Invalid request URL' errors with manual request path
+        # return False will allow the pipeline to proceed with page creation
+        return False
 
     def create_literature_entry(self, data: dict):
         """Creates a record in the Literature Database if it doesn't exist."""
@@ -195,13 +179,13 @@ class NotionIntegration:
             "Novelty score": self._number(data.get("novelty_score")),
             "Feasibility score": self._number(data.get("feasibility_score")),
             "iGEM score": self._number(data.get("igem_score")),
-            "Status": self._select(data.get("status", "Draft")),
+            "Status": {"status": {"name": str(data.get("status", "Draft"))}},
             "Observation": self._rt(data.get("observation")),
             "Hypothesis": self._rt(data.get("hypothesis")),
             "Testable prediction": self._rt(data.get("prediction")),
             "Application": self._rt(data.get("application")),
             "Judge comments": self._rt(data.get("judge_comments")),
-            "Measurement feasibility": self._rt(data.get("measurement_feasibility")),
+            "Measurement feasibility": self._select(data.get("measurement_feasibility")),
         }
         properties = {k: v for k, v in properties.items() if v is not None}
         
