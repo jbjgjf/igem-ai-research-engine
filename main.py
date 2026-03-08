@@ -19,7 +19,7 @@ def main():
 
     args = parser.parse_args()
 
-    print("=== iGEM AI Research Engine ===")
+    print("=== Aging SynBio Scout ===")
     try:
         settings.validate_required_env()
         print(f"LLM Backend: {settings.LLM_BACKEND}")

@@ -1,4 +1,4 @@
-# iGEM AI Research Engine
+# Aging SynBio Scout
 
 An AI research engine for generating iGEM synthetic biology project ideas focused on aging biology.
 
