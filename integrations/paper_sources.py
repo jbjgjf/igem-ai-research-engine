@@ -88,21 +88,53 @@ def fetch_pubmed_papers(query: str, max_results: int = 5) -> List[Dict]:
             return []
             
         # Fetch details
-        fetch_url = f"{base_url}esummary.fcgi"
-        fetch_params = {
+        # Fetch summary details
+        summary_fetch_url = f"{base_url}esummary.fcgi"
+        summary_fetch_params = {
             "db": "pubmed",
             "id": ",".join(id_list),
             "retmode": "json"
         }
-        fetch_resp = requests.get(fetch_url, params=fetch_params)
-        results = fetch_resp.json().get("result", {})
+        summary_resp = requests.get(summary_fetch_url, params=summary_fetch_params)
+        summary_results = summary_resp.json().get("result", {})
+
+        # Fetch full XML for abstracts
+        efetch_url = f"{base_url}efetch.fcgi"
+        efetch_params = {
+            "db": "pubmed",
+            "id": ",".join(id_list),
+            "retmode": "xml" # Request XML for full details including abstract
+        }
+        efetch_resp = requests.get(efetch_url, params=efetch_params)
+        
+        # Simple regex-based XML abstract extraction to avoid heavy dependencies
+        abstract_map = {}
+        if efetch_resp.status_code == 200:
+            xml_content = efetch_resp.text
+            # Use broader regex and DOTALL to find all articles
+            articles = re.findall(r"<PubmedArticle>.*?</PubmedArticle>", xml_content, re.DOTALL)
+            print(f"  [PubMed Debug] Found {len(articles)} articles in XML")
+            
+            for article in articles:
+                pmid_match = re.search(r"<PMID[^>]*>(\d+)</PMID>", article)
+                # Abstracts can have multiple AbstractText segments (Background, Methods, etc.)
+                abstract_parts = re.findall(r"<AbstractText[^>]*>(.*?)</AbstractText>", article, re.DOTALL)
+                if pmid_match and abstract_parts:
+                    pmid = pmid_match.group(1)
+                    full_abs = " ".join(abstract_parts)
+                    # Strip any remaining XML tags
+                    abs_text = re.sub(r"<[^>]+>", "", full_abs).strip()
+                    abstract_map[pmid] = abs_text
+                    # print(f"  [PubMed Debug] Extracted abstract for {pmid} ({len(abs_text)} chars)")
         
         for pmid in id_list:
-            summary = results.get(pmid, {})
+            summary = summary_results.get(pmid, {})
             if not summary: continue
             
+            abs_text = abstract_map.get(pmid)
             papers.append(normalize_paper({
                 "title": summary.get("title"),
+                "abstract": abs_text,
                 "authors": [a.get("name") for a in summary.get("authors", [])],
                 "published_date": summary.get("pubdate"),
                 "pmid": pmid,
@@ -169,49 +201,101 @@ def fetch_semantic_scholar_papers(query: str, max_results: int = 5, source_filte
 def apply_quality_filters(papers: List[Dict]) -> List[Dict]:
     """
     Apply hard filters (abstract) and compute heuristic relevance scores.
-    Conservative filtering: keep papers unless abstract is missing.
     """
     filtered_papers = []
     
-    aging_keywords = [
-        "aging", "senescence", "cellular senescence", "age-related", 
-        "longevity", "ovarian aging", "inflammaging", "epigenetic drift", 
-        "mitochondrial dysfunction", "proteostasis", "DNA damage"
-    ]
+    # Priority keywords for aging
+    aging_keywords = {
+        "senescence": 2.0,
+        "cellular senescence": 3.0,
+        "aging": 1.5,
+        "longevity": 1.5,
+        "inflammaging": 2.0,
+        "epigenetic drift": 2.0,
+        "mitochondrial dysfunction": 1.5,
+        "ovarian aging": 2.0,
+        "proteostasis": 1.5,
+        "dna damage": 1.0,
+        "telomere": 1.5,
+        "autophagy": 1.0,
+        "stem cell exhaustion": 2.0
+    }
     
-    synbio_keywords = [
-        "synthetic biology", "genetic circuit", "gene circuit", 
-        "engineered cells", "biosensor", "reporter", "regulation circuit", 
-        "cellular computation", "signal processing", "engineering biology", 
-        "circuit design"
-    ]
+    # Priority keywords for synthetic biology
+    synbio_keywords = {
+        "synthetic biology": 3.0,
+        "genetic circuit": 3.0,
+        "gene circuit": 3.0,
+        "engineered cell": 2.0,
+        "biosensor": 2.5,
+        "cellular computation": 2.5,
+        "biological circuit": 2.0,
+        "reporter": 1.0,
+        "optogenetics": 1.5,
+        "crispr": 1.0,
+        "transcription factor": 1.0,
+        "feedback loop": 2.0,
+        "logic gate": 2.0
+    }
+
+    print(f"\n--- Filtering Report ({len(papers)} candidates) ---")
+    print(f"{'Source':<15} | {'Title':<50} | {'Abs?':<4} | {'Len':<5} | {'Aging':<5} | {'SynBio':<5} | {'Status'}")
+    print("-" * 110)
 
     for paper in papers:
         title = paper.get("title", "").lower()
         abstract = paper.get("abstract", "").lower()
+        if abstract == "no abstract available.":
+            abstract = ""
         
-        # 1. Hard filter: Abstract required
-        # Some sources return placeholders like "No abstract available."
-        is_missing_abstract = not abstract or len(abstract) < 50 or "no abstract available" in abstract
+        # 1. Abstract Quality Check
+        abs_len = len(abstract)
+        is_missing = not abstract or abs_len < settings.ABSTRACT_MIN_LENGTH or "no abstract available" in abstract
         
-        if is_missing_abstract:
-            print(f"  [Filter] Skipped: {paper['title'][:50]}... (Reason: Missing or empty abstract)")
-            continue
+        # 2. Compute weighted scores
+        aging_score = 0.0
+        synbio_score = 0.0
+        
+        # Score Title (much higher weight)
+        for kw, weight in aging_keywords.items():
+            if kw in title:
+                aging_score += weight * settings.TITLE_WEIGHT
+        for kw, weight in synbio_keywords.items():
+            if kw in title:
+                synbio_score += weight * settings.TITLE_WEIGHT
+                
+        # Score Abstract
+        for kw, weight in aging_keywords.items():
+            if kw in abstract:
+                aging_score += weight
+        for kw, weight in synbio_keywords.items():
+            if kw in abstract:
+                synbio_score += weight
 
-        # 2. Compute heuristic scores
-        aging_score = sum(1 for kw in aging_keywords if kw in title or kw in abstract)
-        synbio_score = sum(1 for kw in synbio_keywords if kw in title or kw in abstract)
+        # Store scores
+        paper["aging_relevance_score"] = round(aging_score, 1)
+        paper["synbio_relevance_score"] = round(synbio_score, 1)
         
-        # Store scores for logging/ranking
-        paper["aging_relevance_score"] = aging_score
-        paper["synbio_relevance_score"] = synbio_score
+        # Filter Logic
+        keep = True
+        skip_reason = ""
         
-        # Log results
-        status = "Kept"
-        print(f"  [Filter] {status}: {paper['title'][:50]}... (Aging: {aging_score}, SynBio: {synbio_score})")
+        if is_missing:
+            keep = False
+            skip_reason = "Missing Abstract"
+        elif aging_score < settings.MIN_RELEVANCE_THRESHOLD:
+            keep = False
+            skip_reason = f"Low Aging Score ({aging_score})"
+        elif synbio_score < settings.MIN_RELEVANCE_THRESHOLD:
+            keep = False
+            skip_reason = f"Low SynBio Score ({synbio_score})"
         
-        filtered_papers.append(paper)
+        status = "KEEP" if keep else f"SKIP ({skip_reason})"
+        print(f"{paper['source']:<15} | {title[:50]:<50} | {'Yes' if not is_missing else 'No':<4} | {abs_len:<5} | {aging_score:<5.1f} | {synbio_score:<5.1f} | {status}")
         
+        if keep:
+            filtered_papers.append(paper)
+            
     return filtered_papers
 
 def deduplicate_papers(papers: List[Dict]) -> List[Dict]:
@@ -238,31 +322,33 @@ def deduplicate_papers(papers: List[Dict]) -> List[Dict]:
 def rank_papers(papers: List[Dict]) -> List[Dict]:
     """Heuristic ranking using source priority, keywords, and recency."""
     source_priority = {
-        "PubMed": 10,
-        "bioRxiv": 8,
+        "PubMed": 15,
+        "bioRxiv": 12,
         "Semantic Scholar": 5,
         "arXiv": 3
     }
     
     for paper in papers:
+        # 1. Base score from source
         score = source_priority.get(paper["source"], 0)
         
-        # Use pre-computed heuristic scores from apply_quality_filters
-        score += paper.get("aging_relevance_score", 0) * 2
-        score += paper.get("synbio_relevance_score", 0) * 2
+        # 2. Add pre-computed heuristic scores
+        # These are already weighted for title vs abstract
+        score += paper.get("aging_relevance_score", 0)
+        score += paper.get("synbio_relevance_score", 0)
         
-        # Recency boost
+        # 3. Recency boost (mild)
         if paper["published_date"]:
             try:
                 match = re.search(r'\d{4}', str(paper["published_date"]))
                 if match:
                     year = int(match.group())
                     current_year = datetime.now().year
-                    score += max(0, 5 - (current_year - year))
+                    score += max(0, 3 - (current_year - year))
             except:
                 pass
                 
-        paper["relevance_score"] = score
+        paper["relevance_score"] = round(score, 1)
         
     return sorted(papers, key=lambda x: x["relevance_score"], reverse=True)
 
@@ -304,10 +390,21 @@ def fetch_recent_papers(query: str, max_results: int = 5) -> List[Dict]:
     
     ranked = rank_papers(filtered)
     
-    final_selection = ranked[:max_results]
+    # Final safety: if no papers meet a absolute sanity score, return empty
+    # This prevents the "keeping one weak paper" behavior.
+    SANITY_THRESHOLD = 15.0 # (Source + Aging + SynBio)
+    strong_papers = [p for p in ranked if p["relevance_score"] >= SANITY_THRESHOLD]
     
-    print("\nFinal Selected Papers:")
+    if not strong_papers and ranked:
+        print(f"\n[Warning] Found {len(ranked)} papers but none met the sanity threshold ({SANITY_THRESHOLD}).")
+        print("Returning zero papers to maintain quality over quantity.")
+        return []
+
+    final_selection = strong_papers[:max_results]
+    
+    print(f"\nFinal Selected Papers ({len(final_selection)}):")
     for idx, p in enumerate(final_selection):
-        print(f"{idx+1}. [{p['source']}] {p['title'][:80]}... (Score: {p['relevance_score']})")
+        print(f"{idx+1}. [{p['source']}] {p['title'][:80]}...")
+        print(f"   (Scores - Total: {p['relevance_score']}, Aging: {p['aging_relevance_score']}, SynBio: {p['synbio_relevance_score']})")
         
     return final_selection

@@ -37,6 +37,11 @@ EXPANDED_QUERIES = [
     'aging AND "gene regulation circuit"'
 ]
 
+# Quality Filter Settings
+MIN_RELEVANCE_THRESHOLD = 3.0  # Minimum score to keep a paper
+TITLE_WEIGHT = 5.0            # Weight for title match vs abstract match
+ABSTRACT_MIN_LENGTH = 100     # Minimum length for a valid abstract
+
 def validate_required_env():
     missing = []
     
