@@ -83,16 +83,25 @@ class NotionIntegration:
 
     def _is_duplicate(self, database_id: str, title_property: str, title_value: str) -> bool:
         """Checks if a record with the same title already exists in the database."""
-        query = self.notion.databases.query(
-            database_id=database_id,
-            filter={
-                "property": title_property,
-                "title": {
-                    "equals": title_value
+        try:
+            # Manual fallback for missing databases.query in some notion-client versions
+            query = self.notion.request(
+                path=f"databases/{database_id}/query",
+                method="POST",
+                body={
+                    "filter": {
+                        "property": title_property,
+                        "title": {
+                            "equals": title_value
+                        }
+                    }
                 }
-            }
-        )
-        return len(query.get("results", [])) > 0
+            )
+            return len(query.get("results", [])) > 0
+        except Exception as e:
+            # If lookup fails, better to allow potential duplicate than block the whole pipeline
+            print(f"Warning: Duplicate check lookup failed (allowing write): {e}")
+            return False
 
     def create_literature_entry(self, data: dict):
         """Creates a record in the Literature Database if it doesn't exist."""
