@@ -59,10 +59,34 @@ class ResearchPipeline:
                     except Exception as e:
                         print(f"  - Error saving experiment to Notion: {e}")
 
-                    # 4. Judging (Optional, can be stored in Idea DB or as a comment)
-                    # For now, let's just print the evaluation
+                    # 4. Judging
                     evaluation = self.judge_agent.evaluate(hyp, str(circuit_data))
                     print(f"  - Evaluation: Score {evaluation.get('impact_score')}/10, Feasibility {evaluation.get('feasibility_score')}/10")
+
+                    # 5. Populate Idea_DB
+                    print(f"  - Creating Idea_DB entry...")
+                    idea_data = {
+                        "title": f"Project: {hyp[:50]}...",
+                        "biological_problem": lit_analysis.get("open_question"),
+                        "core_mechanism": mech,
+                        "circuit_hypothesis": circuit_data.get("circuit_design"),
+                        "readout": circuit_data.get("expected_signal"),
+                        "novelty_score": evaluation.get("novelty_score"),
+                        "feasibility_score": evaluation.get("feasibility_score"),
+                        "igem_score": evaluation.get("impact_score"),
+                        "status": "Draft",
+                        "observation": lit_analysis.get("observation"),
+                        "hypothesis": hyp,
+                        "prediction": hypothesis_data.get("prediction"),
+                        "application": lit_analysis.get("possible_igem_mapping"),
+                        "judge_comments": evaluation.get("justification"),
+                        "measurement_feasibility": evaluation.get("feasibility_score"), # Reuse for simplicity
+                    }
+                    try:
+                        self.notion.create_idea_entry(idea_data)
+                        print("  - Saved idea to Notion.")
+                    except Exception as e:
+                        print(f"  - Error saving idea to Notion: {e}")
 
             print(f"Finished processing: {paper['title']}")
 
